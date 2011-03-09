@@ -110,14 +110,14 @@ def report_error(pr, ex_msg):
     github.issues.comment(rep_path, pr.number, msg)
 
 def print_msg(pr, msg):
-    """Print the given message together a unique identifier of the given pull
-    request to standard output."""
+    """Print the given message together with a unique identifier of the given
+    pull request to standard output."""
     print "============================="
     print "Pull request: %s\n%s" % (pr.html_url, msg)
     print "============================="
 
 def execute(path, cmd):
-    """Execute in the given path the given command."""
+    """Execute the given command in the given path."""
     cwd = os.getcwd()
     os.chdir(path)
     print "==========> Executing '%s' in '%s' ..." % (cmd, path)
@@ -132,7 +132,8 @@ class BuildError(Exception):
         return self.message
 
 def execute_and_report(path, cmd):
-    """Execute a command, raising an exception for a non-zero return code."""
+    """Execute the given command in the given path, raising an exception for a
+    non-zero return code."""
     if execute(path, cmd) != 0:
         raise BuildError("Failed when executing:\n    %s" % cmd)
 
@@ -203,7 +204,7 @@ def get_pr_ref(pr):
                          pr.head["sha"])
 
 def clear_state():
-    """Clears any state due to processing of pull requests."""
+    """Clears any state due to the processing of pull requests."""
     branch_sha_cache = {}
 
 if __name__ == "__main__":

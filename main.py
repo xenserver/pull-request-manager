@@ -1,4 +1,4 @@
-import re, os, time
+import re, os, time, traceback
 from github2.client import Github
 
 # set basic variables
@@ -11,7 +11,8 @@ build_dir = "build-%s.hg" % bot_name
 log_file = "%s/build-%s.log" % (builds_path, bot_name)
 build_path = "%s/%s" % (builds_path, build_dir)
 build_rep = "http://hg/carbon/trunk/build.hg"
-sleep_time = 60 # seconds
+short_sleep = 60 # seconds
+long_sleep = 600 # seconds
 
 # result caches
 branch_sha_cache = {}
@@ -217,7 +218,10 @@ if __name__ == "__main__":
                 process_pull_request(pr, merge)
             except BuildError as ex:
                 report_error(pr, ex.message)
+            except:
+                traceback.print_exc()
+                time.sleep(long_sleep)
         else:
-            print "==========> No valid pull requests. Sleeping for %ds." % sleep_time
-            time.sleep(sleep_time)
+            print "==========> No valid pull requests. Sleeping for %ds." % short_sleep
+            time.sleep(short_sleep)
         clear_state()

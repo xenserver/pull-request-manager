@@ -188,6 +188,7 @@ def process_pull_request(pr, merge):
 def get_branch_sha(rep_name, branch):
     """Obtain SHA of the last commit of the specified branch of the specified
     repository. The results are cached."""
+    global branch_sha_cache
     rep_path = "%s/%s" % (org_name, rep_name)
     try:
         branch_sha = branch_sha_cache[(rep_path, branch)]
@@ -206,6 +207,7 @@ def get_pr_ref(pr):
 
 def clear_state():
     """Clears any state due to the processing of pull requests."""
+    global branch_sha_cache
     branch_sha_cache = {}
 
 if __name__ == "__main__":

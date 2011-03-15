@@ -51,7 +51,7 @@ def get_next_pull_request():
             # process if an admin approved it, and its last attempt to build it
             # was successful or refs have changed
             if is_approved(comments) and (succeeded or changed):
-                print "APPROVED: %s/%d" % (rep_name, valid_pr.number)
+                log("APPROVED: %s/%d" % (rep_name, valid_pr.number))
                 return valid_pr, changed, True # rebuild if changed, merge
             # otherwise, check if it should be processed anyway
             if changed: backup_pr = valid_pr
@@ -71,7 +71,7 @@ def should_rebuild(pr, comments):
     # approve if no existing bot comments
     bot_comments = [c for c in comments if c.user == bot_name]
     if not bot_comments:
-        print "NO COMMENTS: %s/%d" % (rep_name, pr.number)
+        log("NO COMMENTS: %s/%d" % (rep_name, pr.number))
         return False, True # "last build not succeeded", "refs changed"
     # otherwise, parse last bot's comment, and check for ref changes
     last_bot_comment = bot_comments[-1]
@@ -84,7 +84,7 @@ def should_rebuild(pr, comments):
     branch = pr.base["ref"]
     current_branch_ref = get_branch_ref(rep_name, branch)
     changed = last_pr_ref != current_pr_ref or last_branch_ref != current_branch_ref
-    if changed: print "REFS CHANGED: %s/%d" % (rep_name, pr.number)
+    if changed: log("REFS CHANGED: %s/%d" % (rep_name, pr.number))
     return succeeded, changed
 
 def report_error(pr, ex_msg, show_log):
@@ -119,7 +119,7 @@ def execute(path, cmd):
     """Execute the given command in the given path."""
     cwd = os.getcwd()
     os.chdir(path)
-    print "==========> Executing '%s' in '%s' ..." % (cmd, path)
+    log("Executing '%s' in '%s' ..." % (cmd, path))
     retcode = os.system("GIT_USER=%s %s 2>&1 > %s" % (bot_name, cmd, log_file))
     os.chdir(cwd)
     return retcode
@@ -148,27 +148,27 @@ def process_pull_request(pr, rebuild_required, merge):
     requested, merge the pull request with the main repository. Perform the
     merge without building the system if a rebuild is not required."""
     if not rebuild_required and not merge:
-        print "Invalid call: rebuild_required=False, merge=False"
+        log("Invalid call: rebuild_required=False, merge=False")
         return
     rep_name = pr.base["repository"]["name"]
     rep_path = "%s/%s" % (org_name, rep_name)
-    print "==========> Processing pull request %s/%d .." % (rep_path, pr.number)
+    log("Processing pull request %s/%d .." % (rep_path, pr.number))
     component_name = rep_names[rep_name]
     rep_dir = "%s/myrepos/%s" % (build_path, rep_name)
     branch = pr.base["ref"]
     branch_sha = get_branch_sha(rep_name, branch)
-    print "branch_sha: %s" % branch_sha
+    log("branch_sha: %s" % branch_sha)
+    path_cmds = [
+        (builds_path, "sudo rm -rf %s" % build_dir),
+        (builds_path, "hg clone %s %s" % (build_rep, build_dir)),
+        (build_path, "make manifest-latest"),
+        (build_path, "make %s-myclone" % component_name),
+        (rep_dir, "git checkout %s" % branch),
+        (rep_dir, "curl %s | git am" % pr.patch_url),
+        ]
+    for path, cmd in path_cmds: execute_and_report(path, cmd)
     if rebuild_required:
-        path_cmds = [
-            (builds_path, "sudo rm -rf %s" % build_dir),
-            (builds_path, "hg clone %s %s" % (build_rep, build_dir)),
-            (build_path, "make manifest-latest"),
-            (build_path, "make %s-myclone" % component_name),
-            (rep_dir, "git checkout %s" % branch),
-            (rep_dir, "curl %s | git am" % pr.patch_url),
-            (build_path, "make %s-build" % component_name),
-            ]
-        for path, cmd in path_cmds: execute_and_report(path, cmd)
+        execute_and_report(build_path, "make %s-build" % component_name)
     pr_ref = get_pr_ref(pr)
     branch_ref = get_branch_ref(rep_name, branch)
     if merge:
@@ -179,15 +179,15 @@ def process_pull_request(pr, rebuild_required, merge):
         fresh_pr = github.pull_requests.show(rep_path, pr.number)
         if fresh_pr.state != "open":
             raise MergeError("Pull request %s no longer 'open'." % rep_path)
-        if fresh_pr.head["sha"] == pr.head["sha"]:
+        if fresh_pr.head["sha"] != pr.head["sha"]:
             fresh_pr_ref = get_pr_ref(fresh_pr)
             raise MergeError("Pull request %s modified since to %s." % (rep_path, fresh_pr_ref))
         rep_url = "git@github.com:%s.git" % rep_path
         path_cmds = [
-            (rep_path, "git remote add xen-org %s" % rep_url),
-            (rep_path, "git push xen-org %s" % branch),
+            (rep_dir, "git remote add xen-org %s" % rep_url),
+            (rep_dir, "git push xen-org %s" % branch),
             ]
-        if execute_and_report_multiple(path_cmds): return 1
+        for path, cmd in path_cmds: execute_and_report(path, cmd)
         msg = "### Build succeeded. Merged %s with %s." % (pr_ref, branch_ref)
         print_msg(pr, msg)
         github.issues.comment(rep_path, pr.number, msg)
@@ -223,6 +223,9 @@ def clear_state():
     global branch_sha_cache
     branch_sha_cache = {}
 
+def log(msg):
+    print "[%s] %s" % (time.ctime(), msg)
+
 if __name__ == "__main__":
     """Continually obtain pull requests, and process them. If there are no pull
     requests to process, wait for a while."""
@@ -233,13 +236,14 @@ if __name__ == "__main__":
             if pr:
                 process_pull_request(pr, rebuild_required, merge)
             else:
-                print "==========> No valid pull requests. Sleeping for %ds." % short_sleep
-                time.sleep(short_sleep)
+                log("No valid pull requests.")
+            log("Sleeping for %ds." % short_sleep)
+            time.sleep(short_sleep)
         except BuildError as ex:
             report_error(pr, ex.message, True)
         except MergeError as ex:
             report_error(pr, ex.message, False)
         except:
             traceback.print_exc()
-            print "==========> Unexpected error occurred. Sleeping for %ds." % long_sleep
+            log("Unexpected error occurred. Sleeping for %ds." % long_sleep)
             time.sleep(long_sleep)

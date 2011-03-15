@@ -39,9 +39,10 @@ Once a pull request has been chosen, it is processed as follows:
      branch of the main repository, comment about this on the pull request, and
      close the pull request.
 
-The above process is repeated continuously. If there is no pull request to
-process, the program waits for a while (1min). If a connection error occurs,
-the program waits for a longer period of time (10min) before retrying.
+The above process is repeated continuously. After every processed pull request,
+or if there is no pull request to process, the program waits for a while
+(1min). If a connection error occurs, the program waits for a longer period of
+time (10min) before retrying.
 
 ## Dependencies
 

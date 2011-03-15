@@ -227,18 +227,19 @@ if __name__ == "__main__":
     """Continually obtain pull requests, and process them. If there are no pull
     requests to process, wait for a while."""
     while True:
-        pr, rebuild_required, merge = get_next_pull_request()
-        if pr:
-            try:
+        try:
+            clear_state()
+            pr, rebuild_required, merge = get_next_pull_request()
+            if pr:
                 process_pull_request(pr, rebuild_required, merge)
-            except BuildError as ex:
-                report_error(pr, ex.message, True)
-            except MergeError as ex:
-                report_error(pr, ex.message, False)
-            except:
-                traceback.print_exc()
-                time.sleep(long_sleep)
-        else:
-            print "==========> No valid pull requests. Sleeping for %ds." % short_sleep
-            time.sleep(short_sleep)
-        clear_state()
+            else:
+                print "==========> No valid pull requests. Sleeping for %ds." % short_sleep
+                time.sleep(short_sleep)
+        except BuildError as ex:
+            report_error(pr, ex.message, True)
+        except MergeError as ex:
+            report_error(pr, ex.message, False)
+        except:
+            traceback.print_exc()
+            print "==========> Unexpected error occurred. Sleeping for %ds." % long_sleep
+            time.sleep(long_sleep)

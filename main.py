@@ -3,7 +3,7 @@ from github2.client import Github
 
 # set basic variables
 bot_name = "xen-git"
-import password # defines bot_api_token
+import private # defines bot_email, bot_api_token
 org_name = "xen-org"
 rep_names = {'xen-api': 'api', 'xen-api-libs': 'api-libs'}
 builds_path = "/local/builds"
@@ -19,7 +19,7 @@ branch_sha_cache = {}
 
 # create an authenticating GitHub client
 github = Github(username=bot_name,
-                api_token=password.bot_api_token,
+                api_token=private.bot_api_token,
                 requests_per_second=1)
 
 # determine valid pull request authors
@@ -185,6 +185,8 @@ def process_pull_request(pr, rebuild_required, merge):
         rep_url = "git@github.com:%s.git" % rep_path
         path_cmds = [
             (rep_dir, "git remote add xen-org %s" % rep_url),
+            (rep_dir, "git config user.name %s" % bot_name),
+            (rep_dir, "git config user.email %s" % private.bot_email),
             (rep_dir, "git push xen-org %s" % branch),
             ]
         for path, cmd in path_cmds: execute_and_report(path, cmd)

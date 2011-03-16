@@ -9,10 +9,10 @@ A program that continually checks and potentially merges
 
 The protocol used to choose a pull request to process is the following:
 
-1. find all open pull requests associated with the specified repositories;
-2. from those, select only pull requests made by the administrators of these
+1. Find all open pull requests associated with the specified repositories;
+2. From those, select only pull requests made by the administrators of these
    repositories;
-3. for each pull request:
+3. For each pull request:
    * read its comments, and determine whether the bot's last attempt has
      `succeeded`, and whether either the repository's branch to which the pull
      request was made, or the pull request itself, has `changed` since the
@@ -27,12 +27,17 @@ The protocol used to choose a pull request to process is the following:
 
 Once a pull request has been chosen, it is processed as follows:
 
-1. if refs have `changed`, try building the underlying system with the
-   changesets from the pull request --- if this step fails, report the problem
-   as a comment on the pull request, and stop processing this pull request;
-   otherwise, if refs have not `changed`, i.e. a re-build is not required,
-   proceed with the next step;
-3. if a merge is requested (through administrator's _"Approved."_; see above),
+1. If refs have `changed`, try building the underlying system with the
+   changesets from the pull request:
+
+        make <component-for-pull-request's-repository>-build
+        make api-build
+
+   If these steps fail, report the problem as a comment on the pull request,
+   and stop processing this pull request; otherwise, if refs have not
+   `changed`, i.e.  a re-build is not required, proceed with the next step;
+
+2. If a merge is requested (through administrator's _"Approved."_; see above),
    verify that refs have not `changed` (e.g. while building the system):
    * if refs have `changed`, report the problem as a comment on the pull
      request, and stop processing this pull request;
@@ -56,12 +61,12 @@ implementation of [GitHub's API](http://develop.github.com/).
 
 The following steps are required to run the program:
 
-* make sure the dependencies are satisfied;
+* Make sure the dependencies are satisfied;
 
-* create `private.py`, and within define `bot_email` and `bot_api_token`
+* Create `private.py`, and within define `bot_email` and `bot_api_token`
 variables with appropriate values; and,
 
-* create a `github-xen-git` target in your `.ssh/config` file, which points to
+* Create a `github-xen-git` target in your `.ssh/config` file, which points to
 the bot's private key:
 
           Host github-xen-git
@@ -74,6 +79,16 @@ the bot's private key:
 To start the program, execute the following command:
 
     python main.py
+
+## Known Problems
+
+When checking whether a re-build is required, the bot checks only if the pull
+request's refs or the repository's branch refs have changed; that is, it
+ignores refs of all other repositories. Therefore, it is possible that a
+check will succeed (and the push will occur) even though the system does not
+build with the pull request's changesets due to conflicting changes in some
+other repository. Using a system-wide "build number" would be safer, but would
+also constantly trigger re-builds.
 
 ## Feedback and Contributions
 

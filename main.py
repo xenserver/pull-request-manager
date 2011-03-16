@@ -8,7 +8,12 @@ active = True
 bot_name = "xen-git"
 import private # defines bot_email, bot_api_token
 org_name = "xen-org"
-rep_names = {'xen-api': 'api', 'xen-api-libs': 'api-libs'}
+rep_names = { # repository names to corresponding component names
+    'filesystem-summarise' : 'filesystem-summarise',
+    'stunnel' : 'stunnel',
+    'xen-api': 'api',
+    'xen-api-libs': 'api-libs',
+    }
 builds_path = "/local/builds"
 build_dir = "build-%s.hg" % bot_name
 log_file = "%s/build-%s.log" % (builds_path, bot_name)
@@ -172,6 +177,7 @@ def process_pull_request(pr, rebuild_required, merge):
     for path, cmd in path_cmds: execute_and_report(path, cmd)
     if rebuild_required:
         execute_and_report(build_path, "make %s-build" % component_name)
+        execute_and_report(build_path, "make api-build")
     pr_ref = get_pr_ref(pr)
     branch_ref = get_branch_ref(rep_name, branch)
     if merge:

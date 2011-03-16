@@ -17,9 +17,10 @@ The protocol used to choose a pull request to process is the following:
      `succeeded`, and whether either the repository's branch to which the pull
      request was made, or the pull request itself, has `changed` since the
      last attempt;
-   * if an administrator of the repository has posted a comment _"Approved."_,
-     and the bot has previously `succeeded` or the refs `changed`, prefer
-     processing this pull request;
+   * if an administrator of the repository has posted a comment that starts
+     with _"Approved."_ (case ignored, dot required), and the bot has
+     previously `succeeded` or the refs `changed`, prefer processing this pull
+     request;
    * otherwise, process a pull request only if no pull request satisfies the
      previous step, and the corresponding refs of the pull request have
      `changed`.
@@ -31,8 +32,8 @@ Once a pull request has been chosen, it is processed as follows:
    as a comment on the pull request, and stop processing this pull request;
    otherwise, if refs have not `changed`, i.e. a re-build is not required,
    proceed with the next step;
-3. if a merge is requested (through administrator's _"Approved."_), verify that
-   refs have not `changed` (e.g. while building the system):
+3. if a merge is requested (through administrator's _"Approved."_; see above),
+   verify that refs have not `changed` (e.g. while building the system):
    * if refs have `changed`, report the problem as a comment on the pull
      request, and stop processing this pull request;
    * otherwise, push the changesets of the pull request into the requested

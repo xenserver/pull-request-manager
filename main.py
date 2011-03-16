@@ -1,6 +1,9 @@
 import re, os, time, traceback
 from github2.client import Github
 
+# switch, which determines whether any real actions are executed
+active = True
+
 # set basic variables
 bot_name = "xen-git"
 import private # defines bot_email, bot_api_token
@@ -58,11 +61,11 @@ def get_next_pull_request():
     return backup_pr, True, False # rebuild, don't merge
 
 def is_approved(comments):
-    """Checks the comments of a pull request for special 'approved' message
-    from trusted usernames."""
-    return "approved" in [c.body.lower().replace('.', '').strip()
-                          for c in comments
-                          if c.user in trusted_usernames]
+    """Checks whether any comment of a pull request starts with 'Approved.'
+    (case ignored, dot required)."""
+    return [] != filter(lambda x: x,
+                        [re.match("approved\.", c.body, re.I | re.U)
+                         for c in comments if c.user in trusted_usernames])
 
 def should_rebuild(pr, comments):
     """Checks the pull requests and its comments to see whether the pull request
@@ -106,7 +109,7 @@ def report_error(pr, ex_msg, show_log):
         for i in range(firstLineToPrint, firstLineToPrint + linesToPrint):
             msg += "\n    %s" % lines[i].rstrip()
     print_msg(pr, msg)
-    github.issues.comment(rep_path, pr.number, msg)
+    if active: github.issues.comment(rep_path, pr.number, msg)
 
 def print_msg(pr, msg):
     """Print the given message together with a unique identifier of the given
@@ -189,15 +192,17 @@ def process_pull_request(pr, rebuild_required, merge):
             (rep_dir, "git config user.email %s" % private.bot_email),
             (rep_dir, "git push xen-org %s" % branch),
             ]
-        for path, cmd in path_cmds: execute_and_report(path, cmd)
+        if active:
+            for path, cmd in path_cmds: execute_and_report(path, cmd)
         msg = "### Build succeeded. Merged %s with %s." % (pr_ref, branch_ref)
         print_msg(pr, msg)
-        github.issues.comment(rep_path, pr.number, msg)
-        github.issues.close(rep_path, pr.number)
+        if active:
+            github.issues.comment(rep_path, pr.number, msg)
+            github.issues.close(rep_path, pr.number)
     else:
         msg = "### Build succeeded. Can merge %s with %s." % (pr_ref, branch_ref)
         print_msg(pr, msg)
-        github.issues.comment(rep_path, pr.number, msg)
+        if active: github.issues.comment(rep_path, pr.number, msg)
 
 def get_branch_sha(rep_name, branch):
     """Obtain SHA of the last commit of the specified branch of the specified

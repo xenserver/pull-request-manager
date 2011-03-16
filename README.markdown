@@ -58,8 +58,8 @@ The following steps are required to run the program:
 
 * make sure the dependencies are satisfied;
 
-* create `password.py`, and within define `bot_api_token` variable with an
-appropriate value; and,
+* create `private.py`, and within define `bot_email` and `bot_api_token`
+variables with appropriate values; and,
 
 * create a `github-xen-git` target in your `.ssh/config` file, which points to
 the bot's private key:

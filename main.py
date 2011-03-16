@@ -185,11 +185,9 @@ def process_pull_request(pr, rebuild_required, merge):
         if fresh_pr.head["sha"] != pr.head["sha"]:
             fresh_pr_ref = get_pr_ref(fresh_pr)
             raise MergeError("Pull request %s modified since to %s." % (rep_path, fresh_pr_ref))
-        rep_url = "git@github.com:%s.git" % rep_path
+        rep_url = "git@github-xen-git:%s.git" % rep_path
         path_cmds = [
             (rep_dir, "git remote add xen-org %s" % rep_url),
-            (rep_dir, "git config user.name %s" % bot_name),
-            (rep_dir, "git config user.email %s" % private.bot_email),
             (rep_dir, "git push xen-org %s" % branch),
             ]
         if active:

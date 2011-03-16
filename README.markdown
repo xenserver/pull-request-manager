@@ -56,9 +56,18 @@ implementation of [GitHub's API](http://develop.github.com/).
 
 The following steps are required to run the program:
 
-* make sure the dependencies are satisfied; and,
+* make sure the dependencies are satisfied;
+
 * create `password.py`, and within define `bot_api_token` variable with an
-appropriate value.
+appropriate value; and,
+
+* create a `github-xen-git` target in your `.ssh/config` file, which points to
+the bot's private key:
+
+          Host github-xen-git
+            HostName github.com
+            User git
+            IdentityFile /home/roks/.ssh/id_rsa_xen_git
 
 ## Running
 

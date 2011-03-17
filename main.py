@@ -60,7 +60,7 @@ def get_next_pull_request():
             # was successful or refs have changed
             if is_approved(comments) and (succeeded or changed):
                 log("APPROVED: %s/%d" % (rep_name, valid_pr.number))
-                return valid_pr, changed, True # rebuild if changed, merge
+                return valid_pr, True, True # rebuild, merge
             # otherwise, check if it should be processed anyway
             if changed: backup_pr = valid_pr
     return backup_pr, True, False # rebuild, don't merge
@@ -128,7 +128,7 @@ def execute(path, cmd):
     cwd = os.getcwd()
     os.chdir(path)
     log("Executing '%s' in '%s' ..." % (cmd, path))
-    retcode = os.system("GIT_USER=%s %s 2>&1 > %s" % (bot_name, cmd, log_file))
+    retcode = os.system("GIT_USER=%s %s 2>&1 >> %s" % (bot_name, cmd, log_file))
     os.chdir(cwd)
     return retcode
 
@@ -167,7 +167,7 @@ def process_pull_request(pr, rebuild_required, merge):
     branch_sha = get_branch_sha(rep_name, branch)
     log("branch_sha: %s" % branch_sha)
     path_cmds = [
-        (builds_path, "sudo rm -rf %s" % build_dir),
+        (builds_path, "sudo rm -rf %s %s" % (build_dir, log_file)),
         (builds_path, "hg clone %s %s" % (build_rep, build_dir)),
         (build_path, "make manifest-latest"),
         (build_path, "make %s-myclone" % component_name),
@@ -243,11 +243,12 @@ if __name__ == "__main__":
     while True:
         try:
             clear_state()
+            log("Searching for pull request to process..")
             pr, rebuild_required, merge = get_next_pull_request()
             if pr:
                 process_pull_request(pr, rebuild_required, merge)
             else:
-                log("No valid pull requests.")
+                log("No appropriate pull requests found.")
             log("Sleeping for %ds." % short_sleep)
             time.sleep(short_sleep)
         except BuildError as ex:

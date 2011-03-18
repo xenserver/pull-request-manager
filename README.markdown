@@ -27,18 +27,24 @@ The protocol used to choose a pull request to process is the following:
 
 Once a pull request has been chosen, it is processed as follows:
 
-1. If refs have `changed`, try building the underlying system with the
-   changesets from the pull request:
+1. Try building the underlying system with the changesets from the pull
+   request:
 
         make <component-for-pull-request's-repository>-build
         make api-build
 
    If these steps fail, report the problem as a comment on the pull request,
-   and stop processing this pull request; otherwise, if refs have not
-   `changed`, i.e.  a re-build is not required, proceed with the next step;
+   and stop processing this pull request.
+
+   While currently not enabled, it is easy to configure the bot to only
+   re-build the system if refs have not `changed`. This is disabled, since it
+   is safer to re-build the system before a merge even if the refs have not
+   `changed`, because the bot is not checking refs of all dependent
+   repositories (many of which are not on GitHub).
 
 2. If a merge is requested (through administrator's _"Approved."_; see above),
-   verify that refs have not `changed` (e.g. while building the system):
+   verify that refs have not `changed` since the pull request started being
+   processed:
    * if refs have `changed`, report the problem as a comment on the pull
      request, and stop processing this pull request;
    * otherwise, push the changesets of the pull request into the requested
@@ -79,16 +85,6 @@ the bot's private key:
 To start the program, execute the following command:
 
     python main.py
-
-## Known Problems
-
-When checking whether a re-build is required, the bot checks only if the pull
-request's refs or the repository's branch refs have changed; that is, it
-ignores refs of all other repositories. Therefore, it is possible that a
-check will succeed (and the push will occur) even though the system does not
-build with the pull request's changesets due to conflicting changes in some
-other repository. Using a system-wide "build number" would be safer, but would
-also constantly trigger re-builds.
 
 ## Feedback and Contributions
 

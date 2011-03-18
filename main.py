@@ -160,6 +160,7 @@ def process_pull_request(pr, rebuild_required, merge):
         return
     rep_name = pr.base["repository"]["name"]
     rep_path = "%s/%s" % (org_name, rep_name)
+    user = pr.user["login"]
     log("Processing pull request %s/%d .." % (rep_path, pr.number))
     component_name = rep_names[rep_name]
     rep_dir = "%s/myrepos/%s" % (build_path, rep_name)
@@ -172,7 +173,9 @@ def process_pull_request(pr, rebuild_required, merge):
         (build_path, "make manifest-latest"),
         (build_path, "make %s-myclone" % component_name),
         (rep_dir, "git checkout %s" % branch),
-        (rep_dir, "curl %s | git am" % pr.patch_url),
+        (rep_dir, "git remote add {0} git://github.com/{0}/{1}.git".format(user, rep_name)),
+        (rep_dir, "git fetch %s %s" % (user, pr.head["ref"])),
+        (rep_dir, "git merge %s" % pr.head["sha"]),
         ]
     for path, cmd in path_cmds: execute_and_report(path, cmd)
     if rebuild_required:

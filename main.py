@@ -33,7 +33,7 @@ github = Github(username=bot_name,
 # determine valid pull request authors
 teams = github.organizations.teams(org_name)
 admin_team_ids = [t.id for t in teams if t.permission == "admin"]
-admins = sum([github.teams.members(t.id) for id in admin_team_ids], [])
+admins = sum([github.teams.members(id) for id in admin_team_ids], [])
 trusted_usernames = [admin.login for admin in admins]
 
 def get_next_pull_request():

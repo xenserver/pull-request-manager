@@ -30,11 +30,17 @@ github = Github(username=bot_name,
                 api_token=private.bot_api_token,
                 requests_per_second=1)
 
-# determine valid pull request authors
+# determine admin usernames
 teams = github.organizations.teams(org_name)
 admin_team_ids = [t.id for t in teams if t.permission in ["admin", "push"]]
 admins = sum([github.teams.members(id) for id in admin_team_ids], [])
-trusted_usernames = [admin.login for admin in admins]
+admin_usernames = [admin.login for admin in admins]
+
+# determine valid pull request authors
+pr_team_ids = [t.id for t in teams if t.name == "Authorised pull request authors"]
+pr_users = sum([github.teams.members(id) for id in pr_team_ids], [])
+pr_usernames = [pr_user.login for pr_user in pr_users]
+pr_usernames.extend(admin_usernames)
 
 def get_next_pull_request():
     """Performs a fresh search, and obtains the next pull request to process,
@@ -49,7 +55,7 @@ def get_next_pull_request():
         all_prs = github.pull_requests.list(rep_path, "open")
         # select only pull requests by trusted users
         valid_prs = [pr for pr in all_prs
-                     if pr.user["login"] in trusted_usernames]
+                     if pr.user["login"] in pr_usernames]
         # if a pull request contains a specific comment, chose it immediately
         # otherwise, choose a pull request with no comments from bot or whose
         # refs have changed
@@ -70,7 +76,7 @@ def is_approved(comments):
     (case ignored, dot required)."""
     return [] != filter(lambda x: x,
                         [re.match("approved\.", c.body, re.I | re.U)
-                         for c in comments if c.user in trusted_usernames])
+                         for c in comments if c.user in admin_usernames])
 
 def should_rebuild(pr, comments):
     """Checks the pull requests and its comments to see whether the pull request

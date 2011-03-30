@@ -32,7 +32,7 @@ github = Github(username=bot_name,
 
 # determine valid pull request authors
 teams = github.organizations.teams(org_name)
-admin_team_ids = [t.id for t in teams if t.permission == "admin"]
+admin_team_ids = [t.id for t in teams if t.permission in ["admin", "push"]]
 admins = sum([github.teams.members(id) for id in admin_team_ids], [])
 trusted_usernames = [admin.login for admin in admins]
 

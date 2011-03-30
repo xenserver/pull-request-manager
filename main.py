@@ -174,7 +174,7 @@ def process_pull_request(pr, rebuild_required, merge):
         (build_path, "make %s-myclone" % component_name),
         (rep_dir, "git checkout %s" % branch),
         (rep_dir, "git remote add {0} git://github.com/{0}/{1}.git".format(user, rep_name)),
-        (rep_dir, "git fetch %s %s" % (user, pr.head["ref"])),
+        (rep_dir, "git fetch %s" % user),
         (rep_dir, "git merge %s" % pr.head["sha"]),
         ]
     for path, cmd in path_cmds: execute_and_report(path, cmd)

@@ -179,7 +179,7 @@ def process_pull_request(pr, rebuild_required, merge):
         (build_path, "make manifest-latest"),
         (build_path, "make %s-myclone" % component_name),
         (rep_dir, "git config user.name %s" % bot_name),
-        (rep_dir, "git config user.email %s" % bot_email),
+        (rep_dir, "git config user.email %s" % private.bot_email),
         (rep_dir, "git checkout %s" % branch),
         (rep_dir, "git remote add {0} git://github.com/{0}/{1}.git".format(user, rep_name)),
         (rep_dir, "git fetch %s" % user),

@@ -6,7 +6,7 @@ active = True
 
 # set basic variables
 bot_name = "xen-git"
-import private # defines bot_email, bot_api_token
+import settings # bot_email, bot_api_token, builds_path
 org_name = "xen-org"
 rep_names = { # repository names to corresponding component names
     'filesystem-summarise' : 'filesystem-summarise',
@@ -14,10 +14,9 @@ rep_names = { # repository names to corresponding component names
     'xen-api': 'api',
     'xen-api-libs': 'api-libs',
     }
-builds_path = "/local/builds"
 build_dir = "build-%s.hg" % bot_name
-log_file = "%s/build-%s.log" % (builds_path, bot_name)
-build_path = "%s/%s" % (builds_path, build_dir)
+log_file = "%s/build-%s.log" % (settings.builds_path, bot_name)
+build_path = "%s/%s" % (settings.builds_path, build_dir)
 build_rep = "http://hg/carbon/trunk/build.hg"
 short_sleep = 60 # seconds
 long_sleep = 600 # seconds
@@ -27,7 +26,7 @@ branch_sha_cache = {}
 
 # create an authenticating GitHub client
 github = Github(username=bot_name,
-                api_token=private.bot_api_token,
+                api_token=settings.bot_api_token,
                 requests_per_second=1)
 
 # determine admin usernames
@@ -174,12 +173,12 @@ def process_pull_request(pr, rebuild_required, merge):
     branch_sha = get_branch_sha(rep_name, branch)
     log("branch_sha: %s" % branch_sha)
     path_cmds = [
-        (builds_path, "sudo rm -rf %s %s" % (build_dir, log_file)),
-        (builds_path, "hg clone %s %s" % (build_rep, build_dir)),
+        (settings.builds_path, "sudo rm -rf %s %s" % (build_dir, log_file)),
+        (settings.builds_path, "hg clone %s %s" % (build_rep, build_dir)),
         (build_path, "make manifest-latest"),
         (build_path, "make %s-myclone" % component_name),
         (rep_dir, "git config user.name %s" % bot_name),
-        (rep_dir, "git config user.email %s" % private.bot_email),
+        (rep_dir, "git config user.email %s" % settings.bot_email),
         (rep_dir, "git checkout %s" % branch),
         (rep_dir, "git remote add {0} git://github.com/{0}/{1}.git".format(user, rep_name)),
         (rep_dir, "git fetch %s" % user),

@@ -15,7 +15,8 @@ rep_names = { # repository names to corresponding component names
     'xen-api-libs': 'api-libs',
     }
 build_dir = "build-%s.hg" % bot_name
-log_file = "%s/build-%s.log" % (settings.builds_path, bot_name)
+log_file = "build-%s.log" % bot_name
+log_path = "%s/%s" % (settings.builds_path, log_file)
 build_path = "%s/%s" % (settings.builds_path, build_dir)
 build_rep = "http://hg/carbon/trunk/build.hg"
 short_sleep = 60 # seconds
@@ -111,7 +112,7 @@ def report_error(pr, ex_msg, show_log):
     msg = "### Failed to merge and build %s with %s.\n%s" % (pr_ref, branch_ref, ex_msg)
     if show_log:
         msg += "\nError log:"
-        f = open(log_file)
+        f = open(log_path)
         lines = f.readlines()
         f.close()
         linesToPrint = min(20, len(lines))
@@ -133,7 +134,7 @@ def execute(path, cmd):
     cwd = os.getcwd()
     os.chdir(path)
     log("Executing '%s' in '%s' ..." % (cmd, path))
-    retcode = os.system("GIT_USER=%s %s 2>&1 >> %s" % (bot_name, cmd, log_file))
+    retcode = os.system("GIT_USER=%s %s 2>&1 >> %s" % (bot_name, cmd, log_path))
     os.chdir(cwd)
     return retcode
 

@@ -70,7 +70,7 @@ The following steps are required to run the program:
 * Make sure the dependencies are satisfied;
 
 * Create `settings.py`, and within define `bot_email`, `bot_api_token`, and
-* `builds_path` variables with appropriate values; and,
+  `builds_path` variables with appropriate values; and,
 
 * Create a `github-xen-git` target in your `.ssh/config` file, which points to
 the bot's private key:

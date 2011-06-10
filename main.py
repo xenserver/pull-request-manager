@@ -74,8 +74,9 @@ def get_next_pull_request():
 def is_approved(comments):
     """Checks whether any comment of a pull request starts with 'Approved.'
     (case ignored, dot required)."""
+    reg_exp = "(approved|engage|make it so)[.!]"
     return [] != filter(lambda x: x,
-                        [re.match("approved\.", c.body, re.I | re.U)
+                        [re.match(reg_exp, c.body, re.I | re.U)
                          for c in comments if c.user in admin_usernames])
 
 def should_rebuild(pr, comments):

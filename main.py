@@ -178,7 +178,10 @@ def process_pull_request(pr, rebuild_required, merge):
         (settings.builds_path, "sudo rm -rf %s %s" % (build_dir, log_file)),
         (settings.builds_path, "hg clone %s %s" % (build_rep, build_dir)),
         (build_path, "make manifest-latest"),
-        (build_path, "make %s-myclone" % component_name),
+        ]
+    for path, cmd in path_cmds: execute_and_report(path, cmd)
+    for c in rep_names.itervalues(): execute_and_report(build_path, "make %s-myclone" % c)
+    path_cmds = [
         (rep_dir, "git config user.name %s" % bot_name),
         (rep_dir, "git config user.email %s" % settings.bot_email),
         (rep_dir, "git checkout %s" % branch),
@@ -189,7 +192,8 @@ def process_pull_request(pr, rebuild_required, merge):
     for path, cmd in path_cmds: execute_and_report(path, cmd)
     if rebuild_required:
         execute_and_report(build_path, "make %s-build" % component_name)
-        execute_and_report(build_path, "make api-build")
+        if component_name != "api":
+            execute_and_report(build_path, "make api-build")
     pr_ref = get_pr_ref(pr)
     branch_ref = get_branch_ref(rep_name, branch)
     if merge:

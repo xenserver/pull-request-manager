@@ -18,9 +18,10 @@ The protocol used to choose a pull request to process is the following:
      request was made, or the pull request itself, has `changed` since the
      last attempt;
    * if an administrator of the repository has posted a comment that starts
-     with _"Approved."_ (case ignored, dot required), and the bot has
-     previously `succeeded` or the refs `changed`, prefer processing this pull
-     request;
+     with `@<bot_name>`, followed by a regular expression specified on
+     a line in `positive.txt` (case ignored), followed by `.` or `!`,
+     followed by any text, and the bot has previously `succeeded` or the refs
+     `changed`, prefer processing this pull request;
    * otherwise, process a pull request only if no pull request satisfies the
      previous step, and the corresponding refs of the pull request have
      `changed`.
@@ -42,9 +43,9 @@ Once a pull request has been chosen, it is processed as follows:
    `changed`, because the bot is not checking refs of all dependent
    repositories (many of which are not on GitHub).
 
-2. If a merge is requested (through administrator's _"Approved."_; see above),
-   verify that refs have not `changed` since the pull request started being
-   processed:
+2. If a merge is requested (through administrator's _positive_ comment; see
+   above), verify that refs have not `changed` since the pull request started
+   being processed:
    * if refs have `changed`, report the problem as a comment on the pull
      request, and stop processing this pull request;
    * otherwise, push the changesets of the pull request into the requested

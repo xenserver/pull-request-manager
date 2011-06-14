@@ -72,11 +72,14 @@ def get_next_pull_request():
     return backup_pr, True, False # rebuild, don't merge
 
 def is_approved(comments):
-    """Checks whether any comment of a pull request starts with 'Approved.'
-    (case ignored, dot required)."""
-    reg_exp = "(approved|engage|make it so)[.!]"
+    """Checks whether any comment of a pull request starts with "@xen-git",
+    followed by a regular expression specified on a line in "positive.txt"
+    (case ignored), followed by '.' or '!', followed by any text."""
+    ls = [l.strip() for l in open("positive.txt").readlines() if l.strip()]
+    positive = "(%s)[.!]" % '|'.join(["(%s)" % l for l in ls])
+    positive = "@%s %s" % (bot_name, positive)
     return [] != filter(lambda x: x,
-                        [re.match(reg_exp, c.body, re.I | re.U)
+                        [re.match(positive, c.body, re.I | re.U)
                          for c in comments if c.user in admin_usernames])
 
 def should_rebuild(pr, comments):

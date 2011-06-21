@@ -30,22 +30,25 @@ github = Github(username=bot_name,
                 api_token=settings.bot_api_token,
                 requests_per_second=1)
 
-# determine admin usernames
-teams = github.organizations.teams(org_name)
-admin_team_ids = [t.id for t in teams if t.permission in ["admin", "push"]]
-admins = sum([github.teams.members(id) for id in admin_team_ids], [])
-admin_usernames = [admin.login for admin in admins]
-
-# determine valid pull request authors
-pr_team_ids = [t.id for t in teams if t.name == "Authorised pull request authors"]
-pr_users = sum([github.teams.members(id) for id in pr_team_ids], [])
-pr_usernames = [pr_user.login for pr_user in pr_users]
-pr_usernames.extend(admin_usernames)
+def refresh_privileges():
+    """Figure out who can approve a request (admin_usernames), and whose pull
+    requests are considered (pr_usernames)."""
+    log("Refreshing privileges..")
+    global admin_usernames, pr_usernames
+    teams = github.organizations.teams(org_name)
+    admin_team_ids = [t.id for t in teams if t.permission in ["admin", "push"]]
+    admins = sum([github.teams.members(id) for id in admin_team_ids], [])
+    admin_usernames = [admin.login for admin in admins]
+    pr_team_ids = [t.id for t in teams if t.name == "Authorised pull request authors"]
+    pr_users = sum([github.teams.members(id) for id in pr_team_ids], [])
+    pr_usernames = [pr_user.login for pr_user in pr_users]
+    pr_usernames.extend(admin_usernames)
 
 def get_next_pull_request():
     """Performs a fresh search, and obtains the next pull request to process,
     whether a re-build is required for this pull request, and whether the pull
     request should be merged."""
+    log("Searching for pull request to process..")
     backup_pr = None
     # for each repository
     for rep_name in rep_names:
@@ -259,10 +262,12 @@ def log(msg):
 if __name__ == "__main__":
     """Continually obtain pull requests, and process them. If there are no pull
     requests to process, wait for a while."""
+    run = 0
     while True:
         try:
             clear_state()
-            log("Searching for pull request to process..")
+            if run % 5 == 0:
+                refresh_privileges()
             pr, rebuild_required, merge = get_next_pull_request()
             if pr:
                 process_pull_request(pr, rebuild_required, merge)
@@ -270,6 +275,7 @@ if __name__ == "__main__":
                 log("No appropriate pull requests found.")
             log("Sleeping for %ds." % short_sleep)
             time.sleep(short_sleep)
+            run += 1
         except BuildError as ex:
             report_error(pr, ex.message, True)
         except MergeError as ex:

@@ -1,5 +1,6 @@
 import re, os, time, traceback
 from github2.client import Github
+from jiralib import jira
 
 # switch, which determines whether any real actions are executed
 active = True
@@ -25,6 +26,10 @@ long_sleep = 600 # seconds
 # result caches
 branch_sha_cache = {}
 
+# prepare 'positive' and 'close' admin comment regular expression
+ls = [l.strip() for l in open("positive.txt").readlines() if l.strip()]
+positive = '|'.join(["(%s)" % l for l in ls])
+
 # create an authenticating GitHub client
 github = Github(username=bot_name,
                 api_token=settings.bot_api_token,
@@ -46,8 +51,8 @@ def refresh_privileges():
 
 def get_next_pull_request():
     """Performs a fresh search, and obtains the next pull request to process,
-    whether a re-build is required for this pull request, and whether the pull
-    request should be merged."""
+    whether a re-build is required for this pull request, whether the pull
+    request should be merged, and what (if any) ticket to close."""
     log("Searching for pull request to process..")
     backup_pr = None
     # for each repository
@@ -65,25 +70,34 @@ def get_next_pull_request():
         for valid_pr in valid_prs:
             comments = github.issues.comments(rep_path, valid_pr.number)
             succeeded, changed = should_rebuild(valid_pr, comments)
-            # process if an admin approved it, and its last attempt to build it
+            # check if an admin approved it, and its last attempt to build it
             # was successful or refs have changed
-            if is_approved(comments) and (succeeded or changed):
+            if search_comments(comments, positive) and (succeeded or changed):
                 log("APPROVED: %s/%d" % (rep_name, valid_pr.number))
-                return valid_pr, True, True # rebuild, merge
+                ticket = search_title_for_key(valid_pr)
+                log("TICKET: %s" % ticket)
+                return valid_pr, True, True, ticket # rebuild, merge, to close
             # otherwise, check if it should be processed anyway
             if changed: backup_pr = valid_pr
-    return backup_pr, True, False # rebuild, don't merge
+    return backup_pr, True, False, None # rebuild, don't merge, don't close
 
-def is_approved(comments):
+def search_title_for_key(pr):
+    m = re.match("\[?(ca-[0-9]+)", pr.title, re.I)
+    if m: return m.group(1)
+
+def search_comments(comments, search_re):
     """Checks whether any comment of a pull request starts with "@xen-git",
-    followed by a regular expression specified on a line in "positive.txt"
-    (case ignored), followed by '.' or '!', followed by any text."""
-    ls = [l.strip() for l in open("positive.txt").readlines() if l.strip()]
-    positive = "(%s)[.!]" % '|'.join(["(%s)" % l for l in ls])
-    positive = "@%s %s" % (bot_name, positive)
-    return [] != filter(lambda x: x,
-                        [re.match(positive, c.body, re.I | re.U)
-                         for c in comments if c.user in admin_usernames])
+    and one of its parts (parts are delimited by '.' or '!') starts with the
+    given regular expression (case ignored)."""
+    for c in comments:
+        if c.user not in admin_usernames: continue
+        m = re.match("@%s " % bot_name, c.body, re.I)
+        if not m: continue
+        cmds = c.body[m.end():].replace('!', '.').split('.')
+        cmds = [cmd.strip() for cmd in cmds if cmd.strip()]
+        for cmd in cmds:
+            if re.match(search_re, cmd, re.I | re.U):
+                return cmd
 
 def should_rebuild(pr, comments):
     """Checks the pull requests and its comments to see whether the pull request
@@ -163,11 +177,11 @@ class MergeError(Exception):
     def __str__(self):
         return self.message
 
-def process_pull_request(pr, rebuild_required, merge):
+def process_pull_request(pr, rebuild_required, merge, ticket):
     """If a rebuild is required, try building the system with the changesets
     from the given pull request. If the build succeeds and the merge has been
-    requested, merge the pull request with the main repository. Perform the
-    merge without building the system if a rebuild is not required."""
+    requested, merge the pull request with the main repository. Also close the
+    Jira ticket if merged and a ticket is specified."""
     if not rebuild_required and not merge:
         log("Invalid call: rebuild_required=False, merge=False")
         return
@@ -221,6 +235,13 @@ def process_pull_request(pr, rebuild_required, merge):
         if active:
             for path, cmd in path_cmds: execute_and_report(path, cmd)
         msg = "### Build succeeded. Merged %s with %s." % (pr_ref, branch_ref)
+        if settings.jira_url and ticket:
+            ticket_ref = "[{0}](http://jira/browse/{0})".format(ticket)
+            try:
+                closeTicket(pr, ticket)
+                msg += " Closed ticket %s." % ticket_ref
+            except Exception, e:
+                msg += " Failed to close ticket %s (reason: %s)." % (ticket_ref, e)
         print_msg(pr, msg)
         if active:
             github.issues.comment(rep_path, pr.number, msg)
@@ -259,6 +280,14 @@ def clear_state():
 def log(msg):
     print "[%s] %s" % (time.ctime(), msg)
 
+def closeTicket(pr, key):
+    j = jira.Jira(settings.jira_url, settings.jira_username, settings.jira_password)
+    i = j.getIssue(key)
+    if active:
+        link = "[A patch|%s]" % pr.html_url
+        i.addComment("%s that fixes this issue has been merged into trunk." % link)
+        i.resolve("Fixed")
+
 if __name__ == "__main__":
     """Continually obtain pull requests, and process them. If there are no pull
     requests to process, wait for a while."""
@@ -266,11 +295,12 @@ if __name__ == "__main__":
     while True:
         try:
             clear_state()
-            if run % 5 == 0:
+            if run % 10 == 0:
                 refresh_privileges()
-            pr, rebuild_required, merge = get_next_pull_request()
+                run = 1
+            pr, rebuild, merge, ticket = get_next_pull_request()
             if pr:
-                process_pull_request(pr, rebuild_required, merge)
+                process_pull_request(pr, rebuild, merge, ticket)
             else:
                 log("No appropriate pull requests found.")
             log("Sleeping for %ds." % short_sleep)

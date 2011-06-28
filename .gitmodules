@@ -1,0 +1,3 @@
+[submodule "jiralib"]
+	path = jiralib
+	url = git://github.com/xen-org/jiralib.git

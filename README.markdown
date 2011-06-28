@@ -87,6 +87,14 @@ To start the program, execute the following command:
 
     python main.py
 
+## Extras
+
+The tool also features support for
+[JIRA](http://www.atlassian.com/software/jira/) through the
+[jiralib](https://github.com/xen-org/jiralib) project. To use it, define
+`jira_url`, `jira_username`, and `jira_password` variables in `settings.py`.
+See the `closeTicket` function within `main.py` for more information.
+
 ## Feedback and Contributions
 
 Feedback and contributions are welcome. Please submit contributions

@@ -241,6 +241,7 @@ def process_pull_request(pr, rebuild_required, merge, ticket):
                 closeTicket(pr, ticket)
                 msg += " Closed ticket %s." % ticket_ref
             except Exception, e:
+                traceback.print_exc()
                 msg += " Failed to close ticket %s (reason: %s)." % (ticket_ref, e)
         print_msg(pr, msg)
         if active:

@@ -7,6 +7,7 @@ active = True
 
 # set basic variables
 bot_name = "xen-git"
+tmp_branch = "%s-tmp" % bot_name
 import settings # bot_email, bot_api_token, builds_path
 org_name = "xen-org"
 rep_names = { # repository names to corresponding component names
@@ -111,7 +112,7 @@ def should_rebuild(pr, comments):
     # otherwise, parse last bot's comment, and check for ref changes
     last_bot_comment = bot_comments[-1]
     first_line = last_bot_comment.body.split("\n")[0]
-    succeeded = first_line.find("### Build succeeded.") == 0
+    succeeded = first_line.find("Build succeeded.") != -1
     refs = re.findall("\S+?@\w+", first_line, re.U)
     last_pr_ref = refs[0]
     last_branch_ref = refs[1]
@@ -130,7 +131,8 @@ def report_error(pr, ex_msg, show_log):
     pr_ref = get_pr_ref(pr)
     branch = pr.base["ref"]
     branch_ref = get_branch_ref(rep_name, branch)
-    msg = "### Failed to merge and build %s with %s.\n%s" % (pr_ref, branch_ref, ex_msg)
+    prefix = bot_msg_prefix(pr_ref, branch_ref)
+    msg = "%s Merge and build failed.\n%s" % (prefix, ex_msg)
     if show_log:
         msg += "\nError log:"
         f = open(log_path)
@@ -142,6 +144,9 @@ def report_error(pr, ex_msg, show_log):
             msg += "\n    %s" % lines[i].rstrip()
     print_msg(pr, msg)
     if active: github.issues.comment(rep_path, pr.number, msg)
+
+def bot_msg_prefix(pr_ref, branch_ref):
+    return "### %s &#8658; %s:" % (pr_ref, branch_ref)
 
 def print_msg(pr, msg):
     """Print the given message together with a unique identifier of the given
@@ -158,6 +163,16 @@ def execute(path, cmd):
     retcode = os.system("GIT_USER=%s %s 2>&1 >> %s" % (bot_name, cmd, log_path))
     os.chdir(cwd)
     return retcode
+
+def execute_and_return(path, cmd):
+    """Execute the given command in the given path, and return whatever was
+    printed to stdout."""
+    cwd = os.getcwd()
+    os.chdir(path)
+    log("Executing '%s' in '%s' ..." % (cmd, path))
+    output = os.popen("GIT_USER=%s %s" % (bot_name, cmd)).read()
+    os.chdir(cwd)
+    return output
 
 class BuildError(Exception):
     def __init__(self, message):
@@ -177,6 +192,49 @@ class MergeError(Exception):
     def __str__(self):
         return self.message
 
+class VerificationError(Exception):
+    def __init__(self, message):
+        self.message = message
+    def __str__(self):
+        return self.message
+
+def obtain_normalised_shas(pr, rep_dir, src_files, ref):
+    shas = dict()
+    execute_and_report(rep_dir, "git checkout -B %s %s" % (tmp_branch, ref))
+    for src_file in src_files:
+        camlp4_cmd = "camlp4 -parser o -printer o -no_comments %s | md5sum" % src_file
+        shas[src_file] = execute_and_return(rep_dir, camlp4_cmd).split()[0]
+    execute_and_report(rep_dir, "git checkout %s" % pr.base["ref"])
+    return shas
+
+def verify_whitespace_changes(rep_dir, pr):
+    log("Verifying whitespace changes..")
+    checked = False
+    execute_and_report(rep_dir, "git checkout %s" % pr.base["ref"])
+    prev = pr.base["sha"]
+    log_range = "%s..%s" % (pr.base["sha"], pr.head["sha"])
+    log_cmd = "git log --reverse --pretty=oneline %s" % log_range
+    out = execute_and_return(rep_dir, log_cmd)
+    for line in out.split("\n"):
+        if line == "": continue
+        parts = line.split(" ", 1)
+        curr = parts[0]
+        comment = parts[1]
+        if re.match("\[?(indentation|whitespace)", comment, re.I):
+            files_cmd = "git show --pretty=\"format:\" --name-only %s" % curr
+            out = execute_and_return(rep_dir, files_cmd)
+            src_files = [f for f in out.split("\n") if re.match(".+\.ml[i]", f)]
+            prev_shas = obtain_normalised_shas(pr, rep_dir, src_files, prev)
+            curr_shas = obtain_normalised_shas(pr, rep_dir, src_files, curr)
+            for src_file in src_files:
+                if prev_shas[src_file] != curr_shas[src_file]:
+                    ref = get_pr_ref(pr, curr)
+                    msg = "Whitespace check failed for %s at %s." % (src_file, ref)
+                    raise VerificationError(msg)
+            checked = True
+        prev = curr
+    return checked
+
 def process_pull_request(pr, rebuild_required, merge, ticket):
     """If a rebuild is required, try building the system with the changesets
     from the given pull request. If the build succeeds and the merge has been
@@ -193,7 +251,6 @@ def process_pull_request(pr, rebuild_required, merge, ticket):
     rep_dir = "%s/myrepos/%s" % (build_path, rep_name)
     branch = pr.base["ref"]
     branch_sha = get_branch_sha(rep_name, branch)
-    log("branch_sha: %s" % branch_sha)
     path_cmds = [
         (settings.builds_path, "sudo rm -rf %s %s" % (build_dir, log_file)),
         (settings.builds_path, "hg clone %s %s" % (build_rep, build_dir)),
@@ -210,12 +267,16 @@ def process_pull_request(pr, rebuild_required, merge, ticket):
         (rep_dir, "git merge %s" % pr.head["sha"]),
         ]
     for path, cmd in path_cmds: execute_and_report(path, cmd)
+    pr_ref = get_pr_ref(pr)
+    branch_ref = get_branch_ref(rep_name, branch)
+    msg = bot_msg_prefix(pr_ref, branch_ref)
+    if verify_whitespace_changes(rep_dir, pr):
+        msg += " Whitespace changes verified."
     if rebuild_required:
         execute_and_report(build_path, "make %s-build" % component_name)
         if component_name != "api":
             execute_and_report(build_path, "make api-build")
-    pr_ref = get_pr_ref(pr)
-    branch_ref = get_branch_ref(rep_name, branch)
+    msg += " Build succeeded."
     if merge:
         fresh_branch_sha = github.repos.branches(rep_path)[branch]
         if fresh_branch_sha != branch_sha:
@@ -234,7 +295,7 @@ def process_pull_request(pr, rebuild_required, merge, ticket):
             ]
         if active:
             for path, cmd in path_cmds: execute_and_report(path, cmd)
-        msg = "### Build succeeded. Merged %s with %s." % (pr_ref, branch_ref)
+        msg += " Pull request merged."
         if settings.jira_url and ticket:
             ticket_ref = "[{0}](http://jira/browse/{0})".format(ticket)
             try:
@@ -248,7 +309,7 @@ def process_pull_request(pr, rebuild_required, merge, ticket):
             github.issues.comment(rep_path, pr.number, msg)
             github.issues.close(rep_path, pr.number)
     else:
-        msg = "### Build succeeded. Can merge %s with %s." % (pr_ref, branch_ref)
+        msg += " Can merge pull request."
         print_msg(pr, msg)
         if active: github.issues.comment(rep_path, pr.number, msg)
 
@@ -268,10 +329,10 @@ def get_branch_ref(rep_name, branch, branch_sha=None):
     if not branch_sha: branch_sha = get_branch_sha(rep_name, branch)
     return "%s/%s@%s" % (org_name, rep_name, branch_sha)
 
-def get_pr_ref(pr):
+def get_pr_ref(pr, ref=None):
+    if ref == None: ref = pr.head["sha"]
     return "%s/%s@%s" % (pr.user["login"],
-                         pr.base["repository"]["name"],
-                         pr.head["sha"])
+                         pr.base["repository"]["name"], ref)
 
 def clear_state():
     """Clears any global state due to the processing of pull requests."""
@@ -310,6 +371,8 @@ if __name__ == "__main__":
         except BuildError as ex:
             report_error(pr, ex.message, True)
         except MergeError as ex:
+            report_error(pr, ex.message, False)
+        except VerificationError as ex:
             report_error(pr, ex.message, False)
         except:
             traceback.print_exc()

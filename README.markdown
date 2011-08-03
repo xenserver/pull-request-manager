@@ -66,6 +66,13 @@ implementation of [GitHub's API](http://develop.github.com/).
 
 ## Setup
 
+Clone the module and its submodule(s) with:
+
+    git clone git://github.com/xen-org/pull-request-manager.git
+    cd pull-request-manager
+    git submodule init
+    git submodule update
+
 The following steps are required to run the program:
 
 * Make sure the dependencies are satisfied;

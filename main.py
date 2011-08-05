@@ -73,7 +73,7 @@ def get_next_pull_request():
             succeeded, changed = should_rebuild(valid_pr, comments)
             # check if an admin approved it, and its last attempt to build it
             # was successful or refs have changed
-            if search_comments(comments, positive) and (succeeded or changed):
+            if (succeeded or changed) and search_comments(comments, positive):
                 log("APPROVED: %s/%d" % (rep_name, valid_pr.number))
                 ticket = search_title_for_key(valid_pr)
                 log("TICKET: %s" % ticket)
@@ -100,10 +100,42 @@ def search_comments(comments, search_re):
             if re.match(search_re, cmd, re.I | re.U):
                 return cmd
 
+def dependencies_satisfied(pr, rep_name):
+    """Checks that all the pull requests that this pull request depends on have
+    been merged. The format for specifying dependencies is:
+       Dependencies: (<pr_number>@<rep_name_without_org_name>)*
+    Multiple dependencies are separated by commas."""
+    m = re.search("Dependencies:(.*)", pr.body, re.I)
+    if not m: return True
+    deps = [d.strip() for d in m.group(1).strip().split(",") if d.strip()]
+    for d in deps:
+        dep_pr_m = re.match("([0-9]+)@(.*)", d)
+        if not dep_pr_m:
+            report_error(pr, "Could not parse dependency: %s" % d, False)
+            return False
+        dep_pr_no = dep_pr_m.group(1)
+        dep_pr_rep = dep_pr_m.group(2)
+        if dep_pr_rep not in rep_names:
+            report_error(pr, "Dependency on unknown depository: %s" % dep_pr_rep, False)
+            return False
+        dep_pr_rep_path = "%s/%s" % (org_name, dep_pr_rep)
+        dep_pr = None
+        try:
+            dep_pr = github.pull_requests.show(dep_pr_rep_path, dep_pr_no)
+        except:
+            report_error(pr, "Could not find dependency: %s" % d, False)
+            return False
+        if not hasattr(dep_pr, "merged_at"):
+            log("DEPENDENCY NOT MERGED: %s for %s/%d" % (d, rep_name, pr.number))
+            return False
+    return True
+
 def should_rebuild(pr, comments):
     """Checks the pull requests and its comments to see whether the pull request
     has succeeded the last time, and whether the refs have changed."""
     rep_name = pr.base["repository"]["name"]
+    if not dependencies_satisfied(pr, rep_name):
+        return False, False
     # approve if no existing bot comments
     bot_comments = [c for c in comments if c.user == bot_name]
     if not bot_comments:

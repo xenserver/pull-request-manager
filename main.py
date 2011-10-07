@@ -1,4 +1,5 @@
 import re, os, time, traceback
+from timeout import Timeout
 from github2.client import Github
 from jiralib import jira
 
@@ -23,6 +24,7 @@ build_path = "%s/%s" % (settings.builds_path, build_dir)
 build_rep = "http://hg/carbon/trunk/build.hg"
 short_sleep = 60 # seconds
 long_sleep = 600 # seconds
+timeout_period = 300 # seconds
 
 # result caches
 branch_sha_cache = {}
@@ -390,9 +392,9 @@ if __name__ == "__main__":
         try:
             clear_state()
             if run % 10 == 0:
-                refresh_privileges()
+                Timeout(refresh_privileges, timeout_period)()
                 run = 1
-            pr, rebuild, merge, ticket = get_next_pull_request()
+            pr, rebuild, merge, ticket = Timeout(get_next_pull_request, timeout_period)()
             if pr:
                 process_pull_request(pr, rebuild, merge, ticket)
             else:

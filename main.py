@@ -1,5 +1,5 @@
 import re, os, time, traceback
-from timeout import Timeout
+from watchdog import Watchdog
 from github2.client import Github
 from jiralib import jira
 
@@ -24,7 +24,8 @@ build_path = "%s/%s" % (settings.builds_path, build_dir)
 build_rep = "http://hg/carbon/trunk-ring3/build.hg"
 short_sleep = 60 # seconds
 long_sleep = 600 # seconds
-timeout_period = 300 # seconds
+fetch_timeout = 180 # seconds
+build_timeout = 1800 # seconds
 
 # result caches
 branch_sha_cache = {}
@@ -391,12 +392,14 @@ if __name__ == "__main__":
     while True:
         try:
             clear_state()
-            if run % 10 == 0:
-                Timeout(refresh_privileges, timeout_period)()
-                run = 1
-            pr, rebuild, merge, ticket = Timeout(get_next_pull_request, timeout_period)()
+            with Watchdog(fetch_timeout):
+                if run % 10 == 0:
+                    run = 0
+                    refresh_privileges()
+                pr, rebuild, merge, ticket = get_next_pull_request()
             if pr:
-                process_pull_request(pr, rebuild, merge, ticket)
+                with Watchdog(build_timeout):
+                    process_pull_request(pr, rebuild, merge, ticket)
             else:
                 log("No appropriate pull requests found.")
             log("Sleeping for %ds." % short_sleep)
@@ -408,6 +411,10 @@ if __name__ == "__main__":
             report_error(pr, ex.message, False)
         except VerificationError as ex:
             report_error(pr, ex.message, False)
+        except Watchdog:
+            traceback.print_exc()
+            log("Operation timed out. Sleeping for %ds." % long_sleep)
+            time.sleep(long_sleep)
         except:
             traceback.print_exc()
             log("Unexpected error occurred. Sleeping for %ds." % long_sleep)

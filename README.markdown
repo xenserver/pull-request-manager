@@ -57,7 +57,15 @@ or if there is no pull request to process, the program waits for a while
 (1min). If a connection error occurs, the program waits for a longer period of
 time (10min) before retrying. Privileges are refreshed every 5 runs.
 
-## Dependencies
+In a pull request's description, one can express its dependencies on other pull
+request. For example, one can write the following:
+
+    Dependencies: 23@my-repo
+
+The above implies that this pull request will not be processed before pull
+request `23` in `my-repo` (of the same GitHub organisation) has been merged.
+
+## Dependencies on other libraries
 
 The program currently depends on:
 

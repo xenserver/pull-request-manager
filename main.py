@@ -331,6 +331,7 @@ def process_pull_request(pr, rebuild_required, merge, ticket):
         if active:
             for path, cmd in path_cmds: execute_and_report(path, cmd)
         msg += " Pull request merged."
+        '''
         if settings.jira_url and ticket:
             ticket_ref = "[{0}](http://jira/browse/{0})".format(ticket)
             try:
@@ -339,6 +340,7 @@ def process_pull_request(pr, rebuild_required, merge, ticket):
             except Exception, e:
                 traceback.print_exc()
                 msg += " Failed to close ticket %s (reason: %s)." % (ticket_ref, e)
+        '''
         print_msg(pr, msg)
         if active:
             github.issues.comment(rep_path, pr.number, msg)

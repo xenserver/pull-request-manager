@@ -21,7 +21,11 @@ build_dir = "build-%s.hg" % bot_name
 log_file = "build-%s.log" % bot_name
 log_path = "%s/%s" % (settings.builds_path, log_file)
 build_path = "%s/%s" % (settings.builds_path, build_dir)
-build_rep = "http://hg/carbon/trunk-ring3/build.hg"
+build_rep_prefix = "http://hg/carbon"
+branch_whitelist = { # valid GitHub branch -> local branch
+    'master' : 'trunk-ring3',
+    'boston-lcm' : 'boston-lcm',
+    }
 short_sleep = 60 # seconds
 long_sleep = 600 # seconds
 fetch_timeout = 180 # seconds
@@ -67,7 +71,8 @@ def get_next_pull_request():
         all_prs = github.pull_requests.list(rep_path, "open")
         # select only pull requests by trusted users
         valid_prs = [pr for pr in all_prs
-                     if pr.user["login"] in pr_usernames]
+                     if pr.user["login"] in pr_usernames
+                     and pr.base["ref"] in branch_whitelist]
         # if a pull request contains a specific comment, chose it immediately
         # otherwise, choose a pull request with no comments from bot or whose
         # refs have changed
@@ -286,6 +291,8 @@ def process_pull_request(pr, rebuild_required, merge, ticket):
     rep_dir = "%s/myrepos/%s" % (build_path, rep_name)
     branch = pr.base["ref"]
     branch_sha = get_branch_sha(rep_name, branch)
+    internal_branch = branch_whitelist[branch]
+    build_rep = "%s/%s/build.hg" % (build_rep_prefix, internal_branch)
     path_cmds = [
         (settings.builds_path, "sudo rm -rf %s %s" % (build_dir, log_file)),
         (settings.builds_path, "hg clone %s %s" % (build_rep, build_dir)),
@@ -296,7 +303,7 @@ def process_pull_request(pr, rebuild_required, merge, ticket):
     path_cmds = [
         (rep_dir, "git config user.name %s" % bot_name),
         (rep_dir, "git config user.email %s" % settings.bot_email),
-        (rep_dir, "git checkout %s" % branch),
+        (rep_dir, "git checkout master"),
         (rep_dir, "git remote add {0} git://github.com/{0}/{1}.git".format(user, rep_name)),
         (rep_dir, "git fetch %s" % user),
         (rep_dir, "git merge %s" % pr.head["sha"]),

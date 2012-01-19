@@ -105,7 +105,7 @@ def search_comments(comments, search_re):
         cmds = c.body[m.end():].replace('!', '.').split('.')
         cmds = [cmd.strip() for cmd in cmds if cmd.strip()]
         for cmd in cmds:
-            if re.match(search_re, cmd, re.I | re.U):
+            if re.search(search_re, cmd, re.I | re.U):
                 return cmd
 
 def dependencies_satisfied(pr, rep_name):

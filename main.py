@@ -28,6 +28,7 @@ branch_whitelist = { # valid GitHub branch -> local branch
     }
 short_sleep = 60 # seconds
 long_sleep = 600 # seconds
+resync_sleep = 300 # seconds
 fetch_timeout = 180 # seconds
 build_timeout = 1800 # seconds
 
@@ -352,6 +353,8 @@ def process_pull_request(pr, rebuild_required, merge, ticket):
         if active:
             github.issues.comment(rep_path, pr.number, msg)
             github.issues.close(rep_path, pr.number)
+        log("Allowing for local/GitHub repos re-sync. Sleeping for %ds." % resync_sleep)
+        time.sleep(resync_sleep)
     else:
         msg += " Can merge pull request."
         print_msg(pr, msg)

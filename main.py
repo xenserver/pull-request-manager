@@ -76,10 +76,10 @@ def get_next_pull_request():
                      and pr.base["ref"] in branch_whitelist]
         # Select pull requests which are not made by trusted users,
         # but which 1) have comments 2) made by admin users 3) which
-        # contain the text '@xen-git test' in the comment body.
+        # contain the text '@xen-git check' in the comment body.
         for pr in set(all_prs) - set(valid_prs):
             comments = github.issues.comments(rep_path, pr.number)
-            if search_comments(comments, "test"):
+            if search_comments(comments, "check"):
                 valid_prs.append(pr)
         # if a pull request contains a specific comment, chose it immediately
         # otherwise, choose a pull request with no comments from bot or whose

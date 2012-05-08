@@ -293,7 +293,8 @@ def process_pull_request(pr, rebuild_required, merge, ticket):
         return
     rep_name = pr.base["repository"]["name"]
     rep_path = "%s/%s" % (org_name, rep_name)
-    user = pr.user["login"]
+    user = pr.user["login"] # user doing the pull request
+    owner = pr.head["repository"]["owner"] # owner of the pull request's repository
     log("Processing pull request %s/%d .." % (rep_path, pr.number))
     component_name = rep_names[rep_name]
     rep_dir = "%s/myrepos/%s" % (build_path, rep_name)
@@ -312,7 +313,7 @@ def process_pull_request(pr, rebuild_required, merge, ticket):
         (rep_dir, "git config user.name %s" % bot_name),
         (rep_dir, "git config user.email %s" % settings.bot_email),
         (rep_dir, "git checkout master"),
-        (rep_dir, "git remote add {0} git://github.com/{0}/{1}.git".format(user, rep_name)),
+        (rep_dir, "git remote add %s git://github.com/%s/%s.git" % (user, owner, rep_name)),
         (rep_dir, "git fetch %s" % user),
         (rep_dir, "git merge %s" % pr.head["sha"]),
         ]
@@ -385,8 +386,8 @@ def get_branch_ref(rep_name, branch, branch_sha=None):
 
 def get_pr_ref(pr, ref=None):
     if ref == None: ref = pr.head["sha"]
-    return "%s/%s@%s" % (pr.user["login"],
-                         pr.base["repository"]["name"], ref)
+    return "%s/%s@%s" % (pr.head["repository"]["owner"],
+                         pr.head["repository"]["name"], ref)
 
 def clear_state():
     """Clears any global state due to the processing of pull requests."""

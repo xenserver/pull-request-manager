@@ -343,8 +343,8 @@ def process_pull_request(pr, rebuild_required, merge, ticket):
             raise MergeError("Pull request %s modified since to %s." % (rep_path, fresh_pr_ref))
         rep_url = "git@github-xen-git:%s.git" % rep_path
         path_cmds = [
-            (rep_dir, "git remote add xen-org %s" % rep_url),
-            (rep_dir, "git push xen-org %s" % branch),
+            (rep_dir, "git remote add %s %s" % (org_name, rep_url)),
+            (rep_dir, "git push %s master:%s" % (org_name, branch)),
             ]
         if active:
             for path, cmd in path_cmds: execute_and_report(path, cmd)

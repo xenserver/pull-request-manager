@@ -25,6 +25,7 @@ build_rep_prefix = "http://hg/carbon"
 branch_whitelist = { # valid GitHub branch -> local branch
     'master' : 'trunk-ring3',
     'boston-lcm' : 'boston-lcm',
+    'rrdd' : 'rrdd',
     'sanibel-lcm' : 'sanibel-lcm',
     }
 short_sleep = 60 # seconds

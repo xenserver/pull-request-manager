@@ -273,7 +273,7 @@ def verify_whitespace_changes(rep_dir, pr):
         if re.match("\[?(indentation|whitespace)", comment, re.I):
             files_cmd = "git show --pretty=\"format:\" --name-only %s" % curr
             out = execute_and_return(rep_dir, files_cmd)
-            src_files = [f for f in out.split("\n") if re.match(".+\.ml[i]", f)]
+            src_files = [f for f in out.split("\n") if re.match(".+\.ml[i]?", f)]
             prev_shas = obtain_normalised_shas(rep_dir, src_files, prev)
             curr_shas = obtain_normalised_shas(rep_dir, src_files, curr)
             for src_file in src_files:

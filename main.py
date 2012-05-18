@@ -123,9 +123,9 @@ def dependencies_satisfied(pr, rep_name):
     been merged. The format for specifying dependencies is:
        Dependencies: (<pr_number>@<rep_name_without_org_name>)*
     Multiple dependencies are separated by commas."""
-    m = re.search("Dependencies:(.*)", pr.body, re.I)
+    m = re.search("dependenc(y|ies):(.*)", pr.body, re.I)
     if not m: return True
-    deps = [d.strip() for d in m.group(1).strip().split(",") if d.strip()]
+    deps = [d.strip() for d in m.group(2).strip().split(",") if d.strip()]
     for d in deps:
         dep_pr_m = re.match("([0-9]+)@(.*)", d)
         if not dep_pr_m:
